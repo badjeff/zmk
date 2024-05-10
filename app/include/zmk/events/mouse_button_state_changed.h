@@ -9,7 +9,6 @@
 
 #include <zmk/hid.h>
 #include <zmk/event_manager.h>
-#include <zmk/mouse.h>
 
 struct zmk_mouse_button_state_changed {
     zmk_mouse_button_t buttons;
