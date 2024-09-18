@@ -81,7 +81,8 @@ DT_FOREACH_CHILD_SEP(DT_INST(0, POS_MAP_COMPAT), ZMK_POS_MAP_LEN_CHECK, (;));
 #define ZMK_POS_MAP_ENTRY(node_id)                                                                 \
     {                                                                                              \
         .layout = COND_CODE_1(                                                                     \
-            DT_HAS_COMPAT_STATUS_OKAY(DT_PHANDLE(node_id, physical_layout)),                       \
+            UTIL_AND(DT_NODE_HAS_COMPAT(DT_PHANDLE(node_id, physical_layout), DT_DRV_COMPAT),      \
+                     DT_NODE_HAS_STATUS(DT_PHANDLE(node_id, physical_layout), okay)),              \
             (&_CONCAT(_zmk_physical_layout_, DT_PHANDLE(node_id, physical_layout))), (NULL)),      \
         .positions = DT_PROP(node_id, positions),                                                  \
     }
@@ -393,10 +394,9 @@ static int zmk_physical_layouts_init(void) {
 #if IS_ENABLED(CONFIG_PM_DEVICE)
     for (int l = 0; l < ARRAY_SIZE(layouts); l++) {
         const struct zmk_physical_layout *pl = layouts[l];
-        if (pl->kscan) {
-            if (pm_device_wakeup_is_capable(pl->kscan)) {
-                pm_device_wakeup_enable(pl->kscan, true);
-            }
+        if (pl->kscan && pm_device_wakeup_is_capable(pl->kscan) &&
+            !pm_device_wakeup_enable(pl->kscan, true)) {
+            LOG_WRN("Failed to wakeup enable %s", pl->kscan->name);
         }
     }
 #endif // IS_ENABLED(CONFIG_PM_DEVICE)
