@@ -22,10 +22,17 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
 
+ZMK_EVENT_IMPL(zmk_physical_layout_selection_changed);
+
 #define DT_DRV_COMPAT zmk_physical_layout
 
 #define USE_PHY_LAYOUTS                                                                            \
     (DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT) && !DT_HAS_CHOSEN(zmk_matrix_transform))
+
+BUILD_ASSERT(
+    !IS_ENABLED(CONFIG_ZMK_STUDIO) || USE_PHY_LAYOUTS,
+    "ZMK Studio requires physical layouts with key positions, and no chosen zmk,matrix-transform. "
+    "See https://zmk.dev/docs/development/hardware-integration/studio-setup");
 
 #if USE_PHY_LAYOUTS
 
@@ -41,6 +48,9 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
     }
 
 #define ZMK_LAYOUT_INST(n)                                                                         \
+    BUILD_ASSERT(!IS_ENABLED(CONFIG_ZMK_STUDIO) || DT_INST_NODE_HAS_PROP(n, keys),                 \
+                 "ZMK Studio requires physical layouts with key positions. See "                   \
+                 "https://zmk.dev/docs/development/hardware-integration/studio-setup");            \
     static const struct zmk_key_physical_attrs const _CONCAT(                                      \
         _zmk_physical_layout_keys_, n)[DT_INST_PROP_LEN_OR(n, keys, 0)] = {                        \
         LISTIFY(DT_INST_PROP_LEN_OR(n, keys, 0), ZKPA_INIT, (, ), n)};                             \
@@ -247,7 +257,14 @@ int zmk_physical_layouts_select(uint8_t index) {
         return -EINVAL;
     }
 
-    return zmk_physical_layouts_select_layout(layouts[index]);
+    int ret = zmk_physical_layouts_select_layout(layouts[index]);
+
+    if (ret >= 0) {
+        raise_zmk_physical_layout_selection_changed(
+            (struct zmk_physical_layout_selection_changed){.selection = index});
+    }
+
+    return ret;
 }
 
 int zmk_physical_layouts_get_selected(void) {

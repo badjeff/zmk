@@ -7,7 +7,6 @@
 #include <drivers/behavior.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/settings/settings.h>
-#include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -17,11 +16,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/matrix.h>
 #include <zmk/sensors.h>
 #include <zmk/virtual_key_position.h>
-
-#include <zmk/ble.h>
-#if ZMK_BLE_IS_CENTRAL
-#include <zmk/split/bluetooth/central.h>
-#endif
 
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
@@ -438,7 +432,7 @@ int zmk_keymap_check_unsaved_changes(void) {
 #define LAYER_NAME_SETTINGS_KEY "keymap/l_n/%d"
 #define LAYER_BINDING_SETTINGS_KEY "keymap/l/%d/%d"
 
-static void save_bindings(void) {
+static int save_bindings(void) {
     for (int l = 0; l < ZMK_KEYMAP_LAYERS_LEN; l++) {
         uint8_t *pending = zmk_keymap_layer_pending_changes[l];
 
@@ -467,45 +461,64 @@ static void save_bindings(void) {
                 char setting_name[20];
                 sprintf(setting_name, LAYER_BINDING_SETTINGS_KEY, l, kp);
 
-                settings_save_one(setting_name, &binding_setting, len);
+                int ret = settings_save_one(setting_name, &binding_setting, len);
+                if (ret < 0) {
+                    LOG_ERR("Failed to save keymap binding at %d on layer %d (%d)", l, kp, ret);
+                    return ret;
+                }
             }
         }
 
         *pending = 0;
     }
+
+    return 0;
 }
 
 #if IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
-static void save_layer_orders(void) {
-    settings_save_one(LAYER_ORDER_SETTINGS_KEY, keymap_layer_orders,
-                      ARRAY_SIZE(keymap_layer_orders));
+static int save_layer_orders(void) {
+    int ret = settings_save_one(LAYER_ORDER_SETTINGS_KEY, keymap_layer_orders,
+                                ARRAY_SIZE(keymap_layer_orders));
+    if (ret < 0) {
+        return ret;
+    }
+
     memcpy(settings_layer_orders, keymap_layer_orders, ARRAY_SIZE(keymap_layer_orders));
+    return 0;
 }
 #endif // IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
 
-static void save_layer_names(void) {
+static int save_layer_names(void) {
     for (int id = 0; id < ZMK_KEYMAP_LAYERS_LEN; id++) {
         if (changed_layer_names & BIT(id)) {
             char setting_name[14];
             sprintf(setting_name, LAYER_NAME_SETTINGS_KEY, id);
-            settings_save_one(setting_name, zmk_keymap_layer_names[id],
-                              strlen(zmk_keymap_layer_names[id]));
+            int ret = settings_save_one(setting_name, zmk_keymap_layer_names[id],
+                                        strlen(zmk_keymap_layer_names[id]));
+            if (ret < 0) {
+                return ret;
+            }
         }
     }
 
     changed_layer_names = 0;
+    return 0;
 }
 
 int zmk_keymap_save_changes(void) {
-    save_bindings();
+    int ret = save_bindings();
+    if (ret < 0) {
+        return ret;
+    }
 
 #if IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
-    save_layer_orders();
+    ret = save_layer_orders();
+    if (ret < 0) {
+        return ret;
+    }
 #endif // IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
 
-    save_layer_names();
-
-    return 0;
+    return save_layer_names();
 }
 
 #if IS_ENABLED(CONFIG_ZMK_KEYMAP_LAYER_REORDERING)
@@ -585,76 +598,22 @@ int zmk_keymap_reset_settings(void) { return -ENOTSUP; }
 
 #endif // IS_ENABLED(CONFIG_ZMK_KEYMAP_SETTINGS_STORAGE)
 
-int invoke_locally(struct zmk_behavior_binding *binding, struct zmk_behavior_binding_event event,
-                   bool pressed) {
-    if (pressed) {
-        return behavior_keymap_binding_pressed(binding, event);
-    } else {
-        return behavior_keymap_binding_released(binding, event);
-    }
-}
-
 int zmk_keymap_apply_position_state(uint8_t source, zmk_keymap_layer_id_t layer_id,
                                     uint32_t position, bool pressed, int64_t timestamp) {
-    // We want to make a copy of this, since it may be converted from
-    // relative to absolute before being invoked
-
-    ASSERT_LAYER_VAL(layer_id, -EINVAL);
-
-    struct zmk_behavior_binding binding = zmk_keymap[layer_id][position];
-    const struct device *behavior;
+    const struct zmk_behavior_binding *binding = &zmk_keymap[layer_id][position];
     struct zmk_behavior_binding_event event = {
         .layer = layer_id,
         .position = position,
         .timestamp = timestamp,
+#if IS_ENABLED(CONFIG_ZMK_SPLIT)
+        .source = source,
+#endif
     };
 
     LOG_DBG("layer_id: %d position: %d, binding name: %s", layer_id, position,
-            binding.behavior_dev);
+            binding->behavior_dev);
 
-    behavior = zmk_behavior_get_binding(binding.behavior_dev);
-
-    if (!behavior) {
-        LOG_WRN("No behavior assigned to %d on layer %d", position, layer_id);
-        return 1;
-    }
-
-    int err = behavior_keymap_binding_convert_central_state_dependent_params(&binding, event);
-    if (err) {
-        LOG_ERR("Failed to convert relative to absolute behavior binding (err %d)", err);
-        return err;
-    }
-
-    enum behavior_locality locality = BEHAVIOR_LOCALITY_CENTRAL;
-    err = behavior_get_locality(behavior, &locality);
-    if (err) {
-        LOG_ERR("Failed to get behavior locality %d", err);
-        return err;
-    }
-
-    switch (locality) {
-    case BEHAVIOR_LOCALITY_CENTRAL:
-        return invoke_locally(&binding, event, pressed);
-    case BEHAVIOR_LOCALITY_EVENT_SOURCE:
-#if ZMK_BLE_IS_CENTRAL
-        if (source == ZMK_POSITION_STATE_CHANGE_SOURCE_LOCAL) {
-            return invoke_locally(&binding, event, pressed);
-        } else {
-            return zmk_split_bt_invoke_behavior(source, &binding, event, pressed);
-        }
-#else
-        return invoke_locally(&binding, event, pressed);
-#endif
-    case BEHAVIOR_LOCALITY_GLOBAL:
-#if ZMK_BLE_IS_CENTRAL
-        for (int i = 0; i < ZMK_SPLIT_BLE_PERIPHERAL_COUNT; i++) {
-            zmk_split_bt_invoke_behavior(i, &binding, event, pressed);
-        }
-#endif
-        return invoke_locally(&binding, event, pressed);
-    }
-
-    return -ENOTSUP;
+    return zmk_behavior_invoke_binding(binding, event, pressed);
 }
 
 int zmk_keymap_position_state_changed(uint8_t source, uint32_t position, bool pressed,
