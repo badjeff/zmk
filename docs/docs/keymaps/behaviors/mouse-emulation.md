@@ -67,6 +67,16 @@ This example will send press of the fourth mouse button when the binding is trig
 &mkp MB4
 ```
 
+### Input Processors
+
+If you want to apply any [input processors](../input-processors/index.md#input-processors-overview) to `&mkp` you can do so by referencing `&mkp_input_listener`, e.g.:
+
+```dts
+&mkp_input_listener {
+    input-processors = <&zip_temp_layer 2 2000>;
+}
+```
+
 ## Mouse Move
 
 This behavior sends mouse X/Y movement events to the connected host.
@@ -99,6 +109,16 @@ The following will send a left mouse movement event to the host when pressed/hel
 &mmv MOVE_LEFT
 ```
 
+### Input Processors
+
+If you want to apply any [input processors](../input-processors/index.md#input-processors-overview) to `&mmv` you can do so by referencing `&mmv_input_listener`, e.g.:
+
+```dts
+&mmv_input_listener {
+    input-processors = <&zip_temp_layer 2 2000>;
+}
+```
+
 ## Mouse Scroll
 
 This behavior sends vertical and horizontal scroll events to the connected host.
@@ -110,23 +130,69 @@ This behavior sends vertical and horizontal scroll events to the connected host.
 
 The following defines can be passed for the parameter:
 
-| Define       | Action     |
-| :----------- | :--------- |
-| `MOVE_UP`    | Move up    |
-| `MOVE_DOWN`  | Move down  |
-| `MOVE_LEFT`  | Move left  |
-| `MOVE_RIGHT` | Move right |
+| Define       | Action       |
+| :----------- | :----------- |
+| `SCRL_UP`    | Scroll up    |
+| `SCRL_DOWN`  | Scroll down  |
+| `SCRL_LEFT`  | Scroll left  |
+| `SCRL_RIGHT` | Scroll right |
 
 ### Examples
 
 The following will send a scroll down event to the host when pressed/held:
 
 ```
-&msc MOVE_DOWN
+&msc SCRL_DOWN
 ```
 
 The following will send a scroll left event to the host when pressed/held:
 
 ```
-&msc MOVE_LEFT
+&msc SCRL_LEFT
 ```
+
+:::note
+
+If you enabled [smooth scrolling](../../config/pointers.md#kconfig) then you will want to use the same `MOVE_UP`, `MOVE_DOWN`, etc values instead of the smaller `SCRL_*` parameters.
+
+:::
+
+### Input Processors
+
+If you want to apply any [input processors](../input-processors/index.md#input-processors-overview) to `&msc` you can do so by referencing `&msc_input_listener`, e.g.:
+
+```dts
+&msc_input_listener {
+    input-processors = <&zip_temp_layer 2 2000>;
+}
+```
+
+### Advanced Configuration
+
+Both `&mmv` and `&msc` are instances of the same `"zmk,behavior-input-two-axis"` behavior. As such, the following settings can be applied to either behavior, e.g.:
+
+```dts
+&mmv {
+    trigger-period-ms = <12>
+};
+```
+
+#### `trigger-period-ms`
+
+How many milliseconds between generated input events based on the current speed/direction.
+
+#### `delay-ms`
+
+How many milliseconds to delay any processing or event generation when first pressed.
+
+#### `time-to-max-speed-ms`
+
+How many milliseconds it takes to accelerate to the curren max speed.
+
+#### `acceleration-exponent`
+
+The acceleration exponent to apply, with three possible values:
+
+- `0` - uniform speed
+- `1` - uniform acceleration
+- `2` - exponential acceleration
