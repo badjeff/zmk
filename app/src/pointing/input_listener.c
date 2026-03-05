@@ -192,7 +192,7 @@ static int apply_config(uint8_t listener_index, const struct input_listener_conf
             }
         }
 
-        LOG_DBG("LISTENER INDEX: %d", listener_index);
+        // LOG_DBG("LISTENER INDEX: %d", listener_index);
         struct zmk_input_processor_state state = {.input_device_index = listener_index,
                                                   .remainder = remainder};
 

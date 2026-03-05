@@ -436,33 +436,33 @@ int zmk_hid_mouse_buttons_release(zmk_mouse_button_flags_t buttons) {
 void zmk_hid_mouse_movement_set(int16_t hwheel, int16_t wheel) {
     mouse_report.body.d_x = hwheel;
     mouse_report.body.d_y = wheel;
-    LOG_DBG("Mouse movement set to %d/%d", mouse_report.body.d_x, mouse_report.body.d_y);
+    // LOG_DBG("Mouse movement set to %d/%d", mouse_report.body.d_x, mouse_report.body.d_y);
 }
 
 void zmk_hid_mouse_movement_update(int16_t hwheel, int16_t wheel) {
     mouse_report.body.d_x += hwheel;
     mouse_report.body.d_y += wheel;
-    LOG_DBG("Mouse movement updated to %d/%d", mouse_report.body.d_x, mouse_report.body.d_y);
+    // LOG_DBG("Mouse movement updated to %d/%d", mouse_report.body.d_x, mouse_report.body.d_y);
 }
 
 void zmk_hid_mouse_scroll_set(int16_t hwheel, int16_t wheel) {
     mouse_report.body.d_scroll_x = hwheel;
     mouse_report.body.d_scroll_y = wheel;
 
-    LOG_DBG("Mouse scroll set to %d/%d", mouse_report.body.d_scroll_x,
-            mouse_report.body.d_scroll_y);
+    // LOG_DBG("Mouse scroll set to %d/%d", mouse_report.body.d_scroll_x,
+    //         mouse_report.body.d_scroll_y);
 }
 
 void zmk_hid_mouse_scroll_update(int16_t hwheel, int16_t wheel) {
     mouse_report.body.d_scroll_x += hwheel;
     mouse_report.body.d_scroll_y += wheel;
 
-    LOG_DBG("Mouse scroll updated to X: %d/%d", mouse_report.body.d_scroll_x,
-            mouse_report.body.d_scroll_y);
+    // LOG_DBG("Mouse scroll updated to X: %d/%d", mouse_report.body.d_scroll_x,
+    //         mouse_report.body.d_scroll_y);
 }
 
 void zmk_hid_mouse_clear(void) {
-    LOG_DBG("Mouse report cleared");
+    // LOG_DBG("Mouse report cleared");
     memset(&mouse_report.body, 0, sizeof(mouse_report.body));
 }
 

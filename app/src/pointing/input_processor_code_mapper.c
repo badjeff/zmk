@@ -30,9 +30,9 @@ static int cm_handle_event(const struct device *dev, struct input_event *event, 
 
     for (int i = 0; i < cfg->mapping_size / 2; i++) {
         if (cfg->mapping[i * 2] == event->code) {
-            uint16_t orig = event->code;
+            // uint16_t orig = event->code;
             event->code = cfg->mapping[(i * 2) + 1];
-            LOG_DBG("Remapped %d to %d", orig, event->code);
+            // LOG_DBG("Remapped %d to %d", orig, event->code);
             break;
         }
     }

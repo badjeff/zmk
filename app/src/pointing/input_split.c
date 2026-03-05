@@ -42,7 +42,7 @@ static int replace_active_key(size_t input, uint16_t find, uint16_t replace) {
 
 int zmk_input_split_report_peripheral_event(uint8_t reg, uint8_t type, uint16_t code, int32_t value,
                                             bool sync) {
-    LOG_DBG("Got peripheral event for %d!", reg);
+    // LOG_DBG("Got peripheral event for %d!", reg);
     for (size_t i = 0; i < ARRAY_SIZE(proxy_inputs); i++) {
         if (reg == proxy_inputs[i].reg) {
             if (type == INPUT_EV_KEY) {

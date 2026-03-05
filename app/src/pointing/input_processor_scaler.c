@@ -34,8 +34,8 @@ static int scale_val(struct input_event *event, uint32_t mul, uint32_t div,
         *state->remainder = value_mul - (scaled * (int16_t)div);
     }
 
-    LOG_DBG("scaled %d with %d/%d to %d with remainder %d", event->value, mul, div, scaled,
-            (state && state->remainder) ? *state->remainder : 0);
+    // LOG_DBG("scaled %d with %d/%d to %d with remainder %d", event->value, mul, div, scaled,
+    //         (state && state->remainder) ? *state->remainder : 0);
 
     event->value = scaled;
 
