@@ -146,7 +146,7 @@ static int peripheral_init(void) {
 SYS_INIT(peripheral_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
 
 int split_peripheral_listener(const zmk_event_t *eh) {
-    LOG_DBG("");
+    // LOG_DBG("");
     const struct zmk_position_state_changed *pos_ev;
     if ((pos_ev = as_zmk_position_state_changed(eh)) != NULL) {
         struct zmk_split_transport_peripheral_event ev = {
